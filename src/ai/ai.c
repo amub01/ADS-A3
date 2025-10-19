@@ -43,6 +43,13 @@ gate_t* duplicate_state(gate_t* gate) {
 	/*
 	Hint: copy the src state as well as the dynamically allocated map and solution
 	*/
+	*duplicate = *gate;
+	duplicate->map = (char **)malloc(duplicate->lines * sizeof(char *));
+	for(int i = 0; i < duplicate->lines; i++) {
+		duplicate->map[i] = strdup(gate->map[i]);
+	}
+	duplicate->soln = strdup(gate->soln);
+	
 	return duplicate;
 
 }
@@ -61,6 +68,26 @@ void free_state(gate_t* stateToFree, gate_t *init_data) {
 	solution string
 	state
 	*/
+	if(stateToFree) 
+	{
+		if(stateToFree->map) 
+		{
+			for(int i = 0; i < stateToFree->lines; i++) 
+			{
+				if(stateToFree->map[i]) 
+				{
+					free(stateToFree->map[i]);
+				}
+			}
+			free(stateToFree->map);
+		}
+
+		if(stateToFree->soln) 
+		{
+			free(stateToFree->soln);
+		}
+		free(stateToFree);
+	}
 }
 
 void free_initial_state(gate_t *init_data) {
@@ -72,6 +99,36 @@ void free_initial_state(gate_t *init_data) {
 	buffer
 	map_save
 	*/
+		if(init_data->buffer) 
+		{
+			free(init_data->buffer);
+		}
+		if(init_data->map_save) 
+		{
+			for(int i = 0; i < init_data->lines; i++) 
+			{
+				if(init_data->map_save[i]) 
+				{
+					free(init_data->map_save[i]);
+				}
+			}
+			free(init_data->map_save);
+		}
+		if(init_data->map) 
+		{
+			for(int i = 0; i < init_data->lines; i++) 
+			{
+				if(init_data->map[i]) 
+				{
+					free(init_data->map[i]);
+				}
+			}
+			free(init_data->map);
+		}
+		if(init_data->soln) 
+		{
+			free(init_data->soln);
+		}
 }
 
 /**
@@ -94,10 +151,12 @@ void find_solution(gate_t* init_data) {
 	// Algorithm 1 is a width n + 1 search
 	int w = init_data->num_pieces + 1;
 
+	enqueue(init_data);
+
 	/*
 	 * FILL IN: Algorithm 1 - 3.
 	 */
-
+	
 	/* Output statistics */
 	elapsed = now() - start;
 	printf("Solution path: ");
@@ -220,5 +279,16 @@ void solve(char const *path)
 	gate.base_path = path;
 
 	find_solution(&gate);
+
+}
+
+void 
+enqueue(gate_t* data, int* enqueued)
+{
+	
+}
+void
+dequeue(data_t* data, int* dequeued)
+{
 
 }
