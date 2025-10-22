@@ -55,20 +55,13 @@ gate_t* duplicate_state(gate_t* gate) {
 	duplicate->num_pieces = gate->num_pieces;
 
 
-	duplicate->map = malloc(sizeof(char *) * gate->lines);
+	duplicate->map = malloc(sizeof(char *)* gate->lines);
 	assert(duplicate->map);
 
 	//copy map
 	for (int row = 0; row < gate->lines; row++)
 	{
 		duplicate->map[row] = strdup(gate->map[row]);
-	}
-
-	// copy piece pos
-	for (int i = 0; i < MAX_PIECES; i++)
-	{
-		duplicate->piece_x[i] = gate->piece_x[i];
-		duplicate->piece_y[i] = gate->piece_y[i];
 	}
 
 	if (gate->soln)
@@ -78,6 +71,13 @@ gate_t* duplicate_state(gate_t* gate) {
 	else
 	{
 		duplicate->soln = NULL;
+	}
+
+	// copy piece pos
+	for (int i = 0; i < MAX_PIECES; i++)
+	{
+		duplicate->piece_x[i] = gate->piece_x[i];
+		duplicate->piece_y[i] = gate->piece_y[i];
 	}
 
     return duplicate;
@@ -133,21 +133,6 @@ void free_initial_state(gate_t *init_data) {
 			}
 			free(init_data->map_save);
 		}
-		if(init_data->map) 
-		{
-			for(int i = 0; i < init_data->lines; i++) 
-			{
-				if(init_data->map[i]) 
-				{
-					free(init_data->map[i]);
-				}
-			}
-			free(init_data->map);
-		}
-		if(init_data->soln) 
-		{
-			free(init_data->soln);
-		}
 }
 
 /**
@@ -182,7 +167,10 @@ void find_solution(gate_t* init_data) {
 	// Algorithm 1 - BFS
 	
 	// Enqueue initial state
-	enqueue( duplicate_state(init_data), queue);
+	gate_t *init_state = malloc(sizeof(gate_t));
+	assert(init_state);
+	init_state = duplicate_state(init_data);
+	enqueue(init_state, queue);
 	enqueued++;
 
 	// //Set up radix tree
@@ -190,9 +178,8 @@ void find_solution(gate_t* init_data) {
 	// struct radixTree *tree = getNewRadixTree(init_data->num_pieces, init_data->lines, width);
 	// int atomCount = init_data->num_pieces;
 
-	// declare currently proccesing node:
 	gate_t *current;
-	while (queue->queuelen)
+	while (queue->queuelen > 0)
 	{
 		current = dequeue(queue);
 		dequeued ++;
@@ -200,28 +187,25 @@ void find_solution(gate_t* init_data) {
 		if (winning_state(*current))
 		{
 			has_won = true;
-			soln = strdup(current->soln);
+			soln = current->soln;
 			free_queue(queue, init_data);
 			break;
 		}
 
 		// iterate over each move
-		for (int n = 0; n < init_data->num_pieces; n++)
+		for (int p = 0; p < init_data->num_pieces; p++)
 		{
 			for (int m = 0; m < 4; m++)
 			{
 				gate_t *new_node = duplicate_state(current);
-				*new_node = attempt_move(*new_node, pieceNames[n], directions[m]);
+				*new_node = attempt_move(*new_node, pieceNames[p], directions[m]);
 
 				
-
-				// check if the move is valid
+				// check if move is valid
 				if (state_change(current, new_node))
 				{
-					append_sol(new_node, n, m);
+					append_sol(new_node, p, m);
 					enqueue(new_node, queue);
-					// //add the new state to the tree
-					// insertRadixTree(tree, packedMap, init_data->num_pieces);
 				}
 				else
 				{
@@ -472,7 +456,7 @@ append_sol(gate_t *node, int piece, int move)
 		tmplen = strlen(node->soln);
 	}
 
-	char *newsol = malloc(tmplen *sizeof(char) + 3);
+	char *newsol = malloc(tmplen + 3);
 	if (tmplen)
 	{
 		strcpy(newsol, node->soln);
