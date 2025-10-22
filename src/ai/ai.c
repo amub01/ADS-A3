@@ -38,20 +38,49 @@ void packMap(gate_t *gate, unsigned char *packedMap);
 bool winning_state(gate_t gate);
 
 gate_t* duplicate_state(gate_t* gate) {
-	gate_t* duplicate = (gate_t*)malloc(sizeof(gate_t));
+
+	gate_t *duplicate = (gate_t *)malloc(sizeof(gate_t));
+	assert(duplicate);
 	/* Fill in */
 	/*
 	Hint: copy the src state as well as the dynamically allocated map and solution
 	*/
-	*duplicate = *gate;
-	duplicate->map = (char **)malloc(duplicate->lines * sizeof(char *));
-	for(int i = 0; i < duplicate->lines; i++) {
-		duplicate->map[i] = strdup(gate->map[i]);
-	}
-	duplicate->soln = strdup(gate->soln);
-	
-	return duplicate;
+	duplicate->buffer = gate->buffer;
+	duplicate->map_save = gate->map_save;
+	duplicate->lines = gate->lines;
+	duplicate->player_x = gate->player_x;
+	duplicate->player_y = gate->player_y;
+	duplicate->base_path = gate->base_path;
+	duplicate->num_chars_map = gate->num_chars_map;
+	duplicate->num_pieces = gate->num_pieces;
 
+
+	duplicate->map = malloc(sizeof(char *) * gate->lines);
+	assert(duplicate->map);
+
+	//copy map
+	for (int row = 0; row < gate->lines; row++)
+	{
+		duplicate->map[row] = strdup(gate->map[row]);
+	}
+
+	// copy piece pos
+	for (int i = 0; i < MAX_PIECES; i++)
+	{
+		duplicate->piece_x[i] = gate->piece_x[i];
+		duplicate->piece_y[i] = gate->piece_y[i];
+	}
+
+	if (gate->soln)
+	{
+		duplicate->soln = strdup(gate->soln);
+	}
+	else
+	{
+		duplicate->soln = NULL;
+	}
+
+    return duplicate;
 }
 
 /**
@@ -59,35 +88,25 @@ gate_t* duplicate_state(gate_t* gate) {
  * Its use is up to your decision.
  */
 void free_state(gate_t* stateToFree, gate_t *init_data) {
-	//Fill in
-	/*
-	Hint:
-	Free all of:
-	dynamically allocated map strings
-	dynamically allocated map string pointers
-	solution string
-	state
-	*/
-	if(stateToFree) 
-	{
-		if(stateToFree->map) 
-		{
-			for(int i = 0; i < stateToFree->lines; i++) 
-			{
-				if(stateToFree->map[i]) 
-				{
-					free(stateToFree->map[i]);
-				}
-			}
-			free(stateToFree->map);
-		}
+    if (!stateToFree) return;
 
-		if(stateToFree->soln) 
-		{
-			free(stateToFree->soln);
-		}
-		free(stateToFree);
-	}
+    // Free map strings and the map array
+    if (stateToFree->map) {
+        for (int i = 0; i < stateToFree->lines; i++) {
+            if (stateToFree->map[i]) {
+                free(stateToFree->map[i]);
+            }
+        }
+        free(stateToFree->map);
+    }
+
+    // Free solution string if it exists
+    if (stateToFree->soln) {
+        free(stateToFree->soln);
+    }
+
+    // Free the state structure itself
+    free(stateToFree);
 }
 
 void free_initial_state(gate_t *init_data) {
@@ -151,8 +170,80 @@ void find_solution(gate_t* init_data) {
 	// Algorithm 1 is a width n + 1 search
 	int w = init_data->num_pieces + 1;
 
-	enqueue(init_data);
+	// Initialise queue
+	queue_ptr queue = malloc(sizeof(queue_t));
+	queue->head = NULL;
+	queue->tail = NULL;
+	queue->queuelen = 0;
 
+
+
+	
+	// Algorithm 1 - BFS
+	
+	// Enqueue initial state
+	enqueue( duplicate_state(init_data), queue);
+	enqueued++;
+
+	// //Set up radix tree
+	// int width = init_data->num_chars_map / init_data->lines;
+	// struct radixTree *tree = getNewRadixTree(init_data->num_pieces, init_data->lines, width);
+	// int atomCount = init_data->num_pieces;
+
+	// declare currently proccesing node:
+	gate_t *current;
+	while (queue->queuelen)
+	{
+		current = dequeue(queue);
+		dequeued ++;
+
+		if (winning_state(*current))
+		{
+			has_won = true;
+			soln = strdup(current->soln);
+			free_queue(queue, init_data);
+			break;
+		}
+
+		// iterate over each move
+		for (int n = 0; n < init_data->num_pieces; n++)
+		{
+			for (int m = 0; m < 4; m++)
+			{
+				gate_t *new_node = duplicate_state(current);
+				*new_node = attempt_move(*new_node, pieceNames[n], directions[m]);
+
+				
+
+				// check if the move is valid
+				if (state_change(current, new_node))
+				{
+					append_sol(new_node, n, m);
+					enqueue(new_node, queue);
+					// //add the new state to the tree
+					// insertRadixTree(tree, packedMap, init_data->num_pieces);
+				}
+				else
+				{
+					free_state(new_node, init_data);
+				}
+			}
+		}
+		free_state(current, init_data);
+	}
+
+	if (!has_won)
+	{
+		printf("No solution found - puzzle is unsolvable\n");
+		soln = "UNSOLVABLE";
+	}
+
+
+
+
+	//Algorithm 2 - BFS + Radix Tree
+
+	
 	/*
 	 * FILL IN: Algorithm 1 - 3.
 	 */
@@ -190,6 +281,7 @@ void find_solution(gate_t* init_data) {
 	}
 	/* Free initial map. */
 	free_initial_state(init_data);
+	free(soln);
 }
 
 /**
@@ -283,12 +375,116 @@ void solve(char const *path)
 }
 
 void 
-enqueue(gate_t* data, int* enqueued)
+enqueue(gate_t* data, queue_ptr queue)
 {
-	
+	// Create new node
+	queuenode_ptr newNode = (queuenode_ptr)malloc(sizeof(queuenode_t));
+	newNode->data = duplicate_state(data);
+	newNode->next = NULL;
+	// If queue is empty
+	if (queue->tail == NULL) 
+	{
+		queue->head = newNode;
+		queue->tail = newNode;
+	} 
+	else 
+	{
+		queue->tail->next = newNode;
+		queue->tail = newNode;
+	}
+	queue->queuelen++;
 }
-void
-dequeue(data_t* data, int* dequeued)
+gate_t*
+dequeue(queue_ptr queue)
 {
+    if (queue->head == NULL) 
+    {
+        // Queue is empty
+		queue->tail = NULL;
+        return NULL;
+    }
+    // Get the front node
+	queuenode_ptr oldHead = queue->head;
+    // Move head to next node
+    gate_t *tmp = oldHead->data;
 
+	queue->head = queue->head->next;
+	// if the list is now empty
+	if (queue->head == NULL) 
+    {
+		queue->tail = NULL;
+    }
+
+	free(oldHead);
+    queue->queuelen--;
+	return tmp;
+}
+
+void
+free_queue(queue_ptr queue, gate_t *data)
+{
+	queuenode_ptr current = queue->head;
+	queuenode_ptr next;
+	while (current)
+	{
+		next = current->next;
+		if (current->data)
+		{
+			free_state(current->data, data);
+		}
+
+		free(current);
+		current = next;
+
+	}
+	
+
+	queue->head = NULL;
+	queue->tail = NULL;
+	free(queue);
+}
+
+int 
+state_change(gate_t * old_state, gate_t *new_state)
+{
+	// check if puzzle state has changed
+	for (int i = 0; i < old_state->num_pieces; i++)
+	{
+		if (old_state->piece_x[i] != new_state->piece_x[i] || 
+		    old_state->piece_y[i] != new_state->piece_y[i])
+		{
+			return 1; 
+		}
+	}
+	return 0;
+}
+
+void
+append_sol(gate_t *node, int piece, int move)
+{
+	int tmplen;
+	if (!node->soln)
+	{
+		tmplen = 0;
+	}
+	else
+	{
+		tmplen = strlen(node->soln);
+	}
+
+	char *newsol = malloc(tmplen *sizeof(char) + 3);
+	if (tmplen)
+	{
+		strcpy(newsol, node->soln);
+	}
+	newsol[tmplen] = pieceNames[piece];
+	newsol[tmplen + 1] = directions[move];
+	newsol[tmplen + 2] = '\0';
+
+	if (node->soln)
+	{
+		free(node->soln);
+	}
+
+	node->soln = newsol;
 }
