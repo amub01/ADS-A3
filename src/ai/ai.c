@@ -122,6 +122,17 @@ void free_initial_state(gate_t *init_data) {
 		{
 			free(init_data->buffer);
 		}
+		if(init_data->map)
+		{
+			for (int i = 0; i < init_data->lines; i++)
+			{
+				if(init_data->map[i])
+				{
+					free(init_data->map[i]);
+				}
+			}
+			free(init_data->map);
+		}
 		if(init_data->map_save) 
 		{
 			for(int i = 0; i < init_data->lines; i++) 
@@ -133,6 +144,8 @@ void free_initial_state(gate_t *init_data) {
 			}
 			free(init_data->map_save);
 		}
+
+
 }
 
 /**
@@ -194,7 +207,6 @@ void find_solution(gate_t* init_data) {
 				has_won = true;
 				soln = strdup(current->soln);
 				free_state(current, init_data);
-				free_queue(queue, init_data);
 				break;
 			}
 
@@ -285,7 +297,6 @@ void find_solution(gate_t* init_data) {
 		free(packedMap);
 	}
 	/* Free initial map. */
-	free_initial_state(init_data);
 	if (soln)
 	{
 	free(soln);
@@ -380,6 +391,8 @@ void solve(char const *path)
 	gate.soln = NULL;
 
 	find_solution(&gate);
+
+	free_initial_state(&gate);
 
 }
 
