@@ -174,9 +174,9 @@ void find_solution(gate_t* init_data) {
 	// Algorithm 2 - Alg 1 + RADIX
 
 	//Set up radix tree
-	int width = init_data->num_chars_map/init_data->lines;
-	struct radixTree *radtree = getNewRadixTree(init_data->num_pieces, init_data->lines, width);
-	int atomCount = init_data->num_pieces;
+	// int width = init_data->num_chars_map/init_data->lines;
+	// struct radixTree *radtree = getNewRadixTree(init_data->num_pieces, init_data->lines, width);
+	// int atomCount = init_data->num_pieces;
 
 	// Algorithm 3 - Alg 1 + Alg 2 + Iterated Width + Novelty
 
@@ -184,7 +184,7 @@ void find_solution(gate_t* init_data) {
 	//{
 		// initialise radix tree based on width
 		gate_t *current;
-		while (queue->queuelen > 0)
+		while (queue->queuelen)
 		{
 			current = dequeue(queue);
 			dequeued ++;
@@ -210,22 +210,24 @@ void find_solution(gate_t* init_data) {
 					// check if move is valid
 					if (state_change(current, new_node))
 					{
-						packMap(new_node, packedMap);
+						//packMap(new_node, packedMap);
 						
 						// check if the move isnt already in radix tree
-						if (!checkPresent(radtree, packedMap, atomCount))
-						{
+						//if (!checkPresent(radtree, packedMap, atomCount))
+						//{
 							//add to solution path
 							append_sol(new_node, p, m);
 							enqueue(new_node, queue);
+							enqueued++;
+
 							//add to rad tree
-							insertRadixTree(radtree, packedMap, init_data->num_pieces);						
-						}
-						else
-						{
-							duplicatedNodes++;
-							free_state(new_node, init_data);
-						}
+							//insertRadixTree(radtree, packedMap, init_data->num_pieces);						
+						//}
+						//else
+						//{
+							//duplicatedNodes++;
+							//free_state(new_node, init_data);
+						//}
 
 					}
 					else
@@ -237,6 +239,8 @@ void find_solution(gate_t* init_data) {
 			free_state(current, init_data);
 		}
 
+		free_queue(queue, init_data);
+
 		if (!has_won)
 		{
 			printf("No solution found - puzzle is unsolvable\n");
@@ -244,14 +248,6 @@ void find_solution(gate_t* init_data) {
 		}
 
 	//}
-
-
-
-
-
-
-	//Algorithm 2 - BFS + Radix Tree
-
 	
 	/*
 	 * FILL IN: Algorithm 1 - 3.
@@ -267,7 +263,7 @@ void find_solution(gate_t* init_data) {
 	printf("Duplicated nodes: %d\n", duplicatedNodes);
 	int memoryUsage = 0;
 	// Algorithm 2: Memory usage, uncomment to add.
-	memoryUsage += queryRadixMemoryUsage(radtree);
+	//memoryUsage += queryRadixMemoryUsage(radtree);
 	// Algorithm 3: Memory usage, uncomment to add.
 	// for(int i = 0; i < w; i++) {
 	//	memoryUsage += queryRadixMemoryUsage(rts[i]);
@@ -392,7 +388,7 @@ enqueue(gate_t* data, queue_ptr queue)
 {
 	// Create new node
 	queuenode_ptr newNode = (queuenode_ptr)malloc(sizeof(queuenode_t));
-	newNode->data = duplicate_state(data);
+	newNode->data = data;
 	newNode->next = NULL;
 	// If queue is empty
 	if (queue->tail == NULL) 
